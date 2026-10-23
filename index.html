@@ -2,892 +2,594 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegram Style Input (Dynamic Height)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Telegram UI - Animated Tails & Full Functions</title>
 <style>
+  /* =========================================
+     1. БАЗОВЫЕ СТИЛИ
+     ========================================= */
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-
   :root {
-    --tg-bg: #ffffff;
-    --tg-secondary-bg: #f4f4f5;
-    --tg-text: #000000;
-    --tg-hint: #707579;
-    --tg-blue: #3390ec;
-    --tg-blue-hover: #2481cc;
-    --tg-blue-light: #e6f2fd;
-    --tg-hover: #f1f1f1;
-    --tg-danger: #e74c3c;
+    --bg: #fff; --bg2: #f4f4f5; --text: #000; --hint: #707579;
+    --blue: #3390ec; --blue-hover: #2481cc; --blue-light: #e6f2fd;
+    --hover: #f1f1f1; --danger: #e74c3c; --orange: #ff9500;
+    --msg-out: #eeffde;
   }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
+  * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+  
   body {
-    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 20px;
-    color: var(--tg-text);
+    font-family: 'Roboto', sans-serif; height: 100vh; height: 100dvh; 
+    display: flex; align-items: center; justify-content: center;
     background: linear-gradient(-45deg, #e0c3fc, #8ec5fc, #fbc2eb, #a6c1ee);
-    background-size: 400% 400%;
-    animation: gradientBG 12s ease infinite;
-    position: relative;
-    overflow: hidden;
+    background-size: 400% 400%; animation: bg 12s ease infinite; overflow: hidden; padding: 20px;
   }
+  @keyframes bg { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
 
-  @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  /* Слой обоев */
-  .wallpaper-layer {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.15;
-    display: none;
-  }
-  .wallpaper-layer.active { display: block; }
+  .wallpaper { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.15; display: none; }
+  .wallpaper.active { display: block; }
   .bg-icon { position: absolute; fill: #000; }
 
-  /* Чат */
-  .chat-container {
-    width: 100%;
-    max-width: 720px;
-    background: var(--tg-bg);
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: 600px;
-    position: relative;
-    z-index: 1;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  .chat {
+    width: 100%; max-width: 720px; height: 100%; max-height: 800px;
+    background: var(--bg); border-radius: 12px; display: flex; flex-direction: column;
+    z-index: 1; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden;
   }
-
-  .chat-header {
-    padding: 12px 16px;
-    background: var(--tg-bg);
-    border-bottom: 1px solid var(--tg-secondary-bg);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  .chat-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #3390ec, #6ab7ff);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 16px;
-  }
-
-  .chat-title { font-weight: 500; font-size: 15px; }
-  .chat-status { font-size: 13px; color: var(--tg-blue); margin-top: 2px; }
-
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    background: var(--tg-secondary-bg);
-    user-select: none; 
-  }
-
-  .message {
-    max-width: 70%;
-    padding: 8px 12px;
-    border-radius: 12px;
-    margin-bottom: 8px;
-    font-size: 15px;
-    line-height: 1.4;
-    word-wrap: break-word;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-  
-  .message:hover { opacity: 0.8; }
-
-  .message.incoming {
-    background: var(--tg-bg);
-    border-bottom-left-radius: 4px;
-  }
-
-  .message.outgoing {
-    background: #eeffde;
-    margin-left: auto;
-    border-bottom-right-radius: 4px;
-  }
-
-  /* Поле ввода */
-  .input-area {
-    position: relative;
-    background: var(--tg-bg);
-    flex-shrink: 0;
-  }
-
-  .input-container {
-    padding: 8px 16px 16px;
-    background: var(--tg-bg);
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-  }
-
-  .input-wrapper {
-    flex: 1;
-    background: var(--tg-secondary-bg);
-    border-radius: 18px;
-    padding: 8px 14px;
-    display: flex;
-    align-items: center;
-    transition: background 0.15s;
-  }
-
-  .input-wrapper:focus-within { background: #eaeaea; }
-
-  .message-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    outline: none;
-    font-family: 'Roboto', sans-serif;
-    font-size: 15px;
-    color: var(--tg-text);
-    resize: none;
-    max-height: 120px;
-    line-height: 1.4;
-    padding: 4px 0;
-  }
-
-  .message-input::placeholder { color: var(--tg-hint); }
-
-  .send-button {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: none;
-    background: var(--tg-blue);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s;
-    flex-shrink: 0;
-  }
-  .send-button:hover { background: var(--tg-blue-hover); }
-  .send-button svg { width: 20px; height: 20px; }
+  @media (max-width: 768px) { body { padding: 0; } .chat { border-radius: 0; max-height: none; } }
 
   /* =========================================
-     ПАНЕЛИ (Всплывающие окна)
+     2. ШАПКА И ПРОФИЛИ
      ========================================= */
-  .panel {
-    position: absolute;
-    bottom: 100%;
-    left: 16px;
-    right: 16px;
-    margin-bottom: 8px;
-    background: var(--tg-bg);
-    border-radius: 12px;
-    /* 
-      ИЗМЕНЕНИЕ: 
-      Убираем жесткий max-height: 300px. 
-      Теперь высота будет задаваться через JS (переменная --dynamic-max-height),
-      чтобы панель не уходила за пределы экрана.
-    */
-    max-height: var(--dynamic-max-height, 300px); 
-    overflow-y: auto;
-    display: none;
-    z-index: 10;
-    animation: slideUp 0.15s ease-out;
-    padding: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  .header { padding: 12px 16px; border-bottom: 1px solid var(--bg2); display: flex; align-items: center; z-index: 20; background: var(--bg); }
+  .avatar-btn { 
+    width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #3390ec, #6ab7ff); 
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; 
+    cursor: pointer; flex-shrink: 0; background-size: cover; background-position: center;
+  }
+  .bots-menu { display: flex; align-items: center; flex: 1; max-width: 0; opacity: 0; overflow: hidden; transition: all 0.3s ease; }
+  .bots-menu.active { max-width: 300px; opacity: 1; margin-left: 12px; }
+  .bots-scroll {
+    display: flex; gap: 8px; align-items: center; overflow-x: auto; scroll-behavior: smooth; 
+    flex: 1; padding: 4px; cursor: grab; -ms-overflow-style: none; scrollbar-width: none;
+  }
+  .bots-scroll:active { cursor: grabbing; }
+  .bots-scroll::-webkit-scrollbar { display: none; }
+
+  .bot-item, .bot-add { 
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; 
+    font-size: 20px; cursor: pointer; background: #2b2b2b; color: #fff; background-size: cover; background-position: center; transition: 0.2s;
+  }
+  .bot-item:hover, .bot-add:hover { background: var(--orange); color: #fff; }
+  .bot-add { border-radius: 12px; background: #444; font-weight: bold; }
+  
+  .bot-item.inactive { animation: pulseGray 2.5s ease-in-out infinite; }
+  @keyframes pulseGray {
+    0% { filter: grayscale(100%); opacity: 0.6; } 50% { filter: grayscale(30%); opacity: 0.9; } 100% { filter: grayscale(100%); opacity: 0.6; }
   }
 
+  .scroll-arrow { 
+    width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+    background: linear-gradient(135deg, #8e44ad, #3390ec); color: white; cursor: pointer; box-shadow: 0 0 10px rgba(51,144,236,0.6); margin-left: 4px;
+  }
+  
+  .header-text { margin-left: 12px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title { font-weight: 500; font-size: 15px; }
+  .status { font-size: 13px; color: var(--blue); }
+
+  /* =========================================
+     3. СООБЩЕНИЯ С АНИМИРОВАННЫМ ХВОСТИКОМ
+     ========================================= */
+  .messages { flex: 1; overflow-y: auto; padding: 16px; background: var(--bg2); user-select: none; overflow-x: hidden; }
+  
+  .msg { 
+    position: relative; max-width: 80%; padding: 8px 12px; border-radius: 12px; 
+    margin-bottom: 8px; font-size: 15px; line-height: 1.4; word-wrap: break-word; 
+  }
+
+  /* ИСХОДЯЩИЕ (Справа) */
+  .msg.out { 
+    background: var(--msg-out); margin-left: auto; border-bottom-right-radius: 4px; 
+    animation: slideRight 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+  /* Хвостик исходящего */
+  .msg.out::after {
+    content: ''; position: absolute; bottom: 0; right: -6px;
+    width: 12px; height: 12px; background: var(--msg-out);
+    border-bottom-left-radius: 12px; z-index: 1;
+  }
+  .msg.out::before {
+    content: ''; position: absolute; bottom: 0; right: -12px;
+    width: 12px; height: 12px; background: var(--bg2); /* Цвет фона чата */
+    border-bottom-left-radius: 12px; z-index: 2;
+  }
+
+  /* ВХОДЯЩИЕ (Слева) */
+  .msg.in { 
+    background: var(--bg); border-bottom-left-radius: 4px; 
+    animation: slideLeft 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+  /* Хвостик входящего */
+  .msg.in::after {
+    content: ''; position: absolute; bottom: 0; left: -6px;
+    width: 12px; height: 12px; background: var(--bg);
+    border-bottom-right-radius: 12px; z-index: 1;
+  }
+  .msg.in::before {
+    content: ''; position: absolute; bottom: 0; left: -12px;
+    width: 12px; height: 12px; background: var(--bg2); /* Цвет фона чата */
+    border-bottom-right-radius: 12px; z-index: 2;
+  }
+
+  /* Анимации выезда */
+  @keyframes slideLeft { from { transform: translateX(-120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes slideRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* =========================================
+     4. ПОЛЕ ВВОДА
+     ========================================= */
+  .input-area { padding: 8px 16px 16px; display: flex; align-items: flex-end; gap: 8px; background: var(--bg); position: relative; }
+  .input-inner { flex: 1; background: var(--bg2); border-radius: 18px; padding: 8px 14px; display: flex; }
+  .msg-input { flex: 1; border: none; background: transparent; font-family: 'Roboto', sans-serif; font-size: 16px; resize: none; max-height: 120px; padding: 4px 0; overflow-y: hidden; }
+  .send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--blue); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .send-btn svg { width: 20px; height: 20px; }
+
+  /* =========================================
+     5. ПАНЕЛИ КОМАНД
+     ========================================= */
+  .panel { position: absolute; bottom: 100%; left: 16px; right: 16px; margin-bottom: 8px; background: var(--bg); border-radius: 12px; max-height: var(--panel-max, 300px); overflow-y: auto; display: none; z-index: 10; padding: 10px; border: 1px solid var(--bg2); }
   .panel.active { display: block; }
-
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .panel-header {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--tg-hint);
-    margin-bottom: 8px;
-    padding-left: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
   
-  .panel-back {
-    cursor: pointer;
-    color: var(--tg-blue);
-    font-weight: 700;
-    display: none;
-  }
-
-  /* Списки */
-  .suggestion-item {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    cursor: pointer;
-    transition: background 0.2s;
-    gap: 12px;
-    border-radius: 10px;
-    white-space: nowrap; 
-    overflow: hidden; 
-  }
-  .suggestion-item:hover { background: var(--tg-hover); }
+  .panel-head { font-size: 13px; font-weight: 500; color: var(--hint); margin-bottom: 8px; display: flex; gap: 8px; }
+  .back { cursor: pointer; color: var(--blue); font-weight: 700; }
   
-  .suggestion-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-  .suggestion-icon.ai { background: linear-gradient(135deg, #8e44ad, #c39bd3); }
-  .suggestion-icon.content { background: linear-gradient(135deg, #e67e22, #f5b041); }
-  .suggestion-icon.card { background: linear-gradient(135deg, #3498db, #85c1e9); }
-  .suggestion-icon.music { background: linear-gradient(135deg, #e74c3c, #f1948a); }
-  .suggestion-icon.sticker { background: linear-gradient(135deg, #2ecc71, #82e0aa); }
+  .item { display: flex; align-items: center; padding: 10px; cursor: pointer; gap: 12px; border-radius: 10px; white-space: nowrap; }
+  .item:hover { background: var(--hover); }
+  .icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .text { display: flex; align-items: baseline; gap: 6px; }
+  .name { font-size: 15px; font-weight: 700; line-height: 1; }
+  .desc { font-size: 15px; color: var(--hint); line-height: 1; }
 
-  .suggestion-text {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .suggestion-title {
-    font-family: 'Roboto', sans-serif;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--tg-text);
-    line-height: 1;
-  }
-
-  .suggestion-desc {
-    font-family: 'Roboto', sans-serif;
-    font-size: 15px;
-    font-weight: 400;
-    color: var(--tg-hint);
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* Анимация для Ai_chat */
-  .suggestion-item[data-command="ai_chat"] .suggestion-title {
+  /* Градиент Ai_chat */
+  .item[data-cmd="ai_chat"] .name {
     background: linear-gradient(135deg, #4158D0 0%, #C850C0 25%, #FFCC70 50%, #C850C0 75%, #4158D0 100%);
-    background-size: 300% 300%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: morphGradient 6s ease-in-out infinite;
-    font-weight: 900; 
+    background-size: 300% 300%; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: morphGradient 6s ease-in-out infinite; font-weight: 900;
   }
+  @keyframes morphGradient { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 
-  @keyframes morphGradient {
-    0% { background-position: 0% 50%; background-size: 200% 200%; }
-    50% { background-position: 100% 50%; background-size: 350% 350%; }
-    100% { background-position: 0% 50%; background-size: 200% 200%; }
-  }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 6px; }
+  .grid-item { background: var(--blue-light); border-radius: 12px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+  .grid-icon { font-size: 24px; margin-bottom: 6px; }
 
-  /* Стиль для списка (#) */
-  .ps-list-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    padding: 6px;
-  }
-
-  .ps-list-item {
-    background: var(--tg-blue-light);
-    border-radius: 12px;
-    padding: 12px 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 2px solid transparent;
-  }
-
-  .ps-list-item:hover { background: #d0e7fc; }
-  .ps-list-item.selected { border-color: var(--tg-blue); background: #d0e7fc; }
-  .ps-list-icon { font-size: 24px; margin-bottom: 6px; }
-  .ps-list-text { font-size: 13px; font-weight: 600; color: var(--tg-text); text-align: center; line-height: 1.2; word-break: break-word; }
-
-  /* Контекстные меню (ПКМ) */
-  .custom-menu {
-    position: fixed;
-    background: var(--tg-bg);
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    padding: 6px;
-    display: none;
-    flex-direction: column;
-    min-width: 180px;
-    z-index: 100;
-    animation: fadeIn 0.1s ease-out;
-  }
-
-  .custom-menu.active { display: flex; }
-
-  .menu-item {
-    padding: 8px 12px;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--tg-text);
-    cursor: pointer;
-    border-radius: 8px;
-    transition: background 0.1s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .menu-item:hover { background: var(--tg-hover); }
-  .menu-item.danger { color: var(--tg-danger); }
-
-  .menu-symbols {
-    display: flex;
-    gap: 8px;
-    padding: 6px;
-    border-bottom: 1px solid var(--tg-secondary-bg);
-    margin-bottom: 6px;
-  }
+  /* =========================================
+     6. КОНТЕКСТНЫЕ МЕНЮ
+     ========================================= */
+  .menu { position: fixed; background: var(--bg); border-radius: 12px; border: 1px solid var(--bg2); padding: 6px; display: none; flex-direction: column; min-width: 180px; z-index: 100; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+  .menu.active { display: flex; }
+  .menu-btn { padding: 8px 12px; font-size: 14px; cursor: pointer; border-radius: 8px; display: flex; gap: 8px; align-items: center; }
+  .menu-btn:hover { background: var(--hover); }
+  .menu-btn.danger { color: var(--danger); }
   
-  .symbol-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: var(--tg-blue-light);
-    color: var(--tg-blue);
-    font-size: 20px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .symbol-btn:hover { background: #d0e7fc; }
+  /* Сетка символов (ПКМ на ввод) */
+  .symbols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 6px; max-width: 220px; }
+  .sym-btn { width: 44px; height: 44px; border-radius: 10px; background: var(--blue-light); color: var(--blue); font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  
+  .profile-input { width: 100%; padding: 8px; margin-bottom: 6px; border: 1px solid #ccc; border-radius: 6px; }
+  .emoji-picker { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .emoji-opt { font-size: 20px; cursor: pointer; padding: 4px; }
 
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
+  /* Официальные Twemoji */
+  img.emoji { height: 1.2em; width: 1.2em; margin: 0 .05em 0 .1em; vertical-align: -0.2em; }
 </style>
+<!-- Официальные SVG Эмодзи -->
+<script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-<div class="wallpaper-layer active" id="wallpaperLayer"></div>
+<div class="wallpaper active" id="wp"></div>
 
-<!-- МЕНЮ 1: ПКМ по фону -->
-<div class="custom-menu" id="menuWallpaper">
-  <div class="menu-item" data-bg="ducks">🦆 Утята</div>
-  <div class="menu-item" data-bg="tg-icons">✈️ Иконки Telegram</div>
-  <div class="menu-item" data-bg="none">🚫 Без обоев</div>
+<!-- МЕНЮ 1: ПКМ по фону (Обои) -->
+<div class="menu" id="mBg">
+  <div class="menu-btn" data-bg="ducks">🦆 Утята</div>
+  <div class="menu-btn" data-bg="tg-icons">✈️ Иконки Telegram</div>
+  <div class="menu-btn" data-bg="none">🚫 Без обоев</div>
 </div>
 
-<!-- МЕНЮ 2: ПКМ по полю ввода -->
-<div class="custom-menu" id="menuSymbols">
-  <div class="menu-symbols">
-    <div class="symbol-btn" data-symbol="/">/</div>
-    <div class="symbol-btn" data-symbol=";">;</div>
-    <div class="symbol-btn" data-symbol="#">#</div>
-    <div class="symbol-btn" data-symbol="*">*</div>
-    <div class="symbol-btn" data-symbol="+">+</div>
+<!-- МЕНЮ 2: ПКМ по сообщению -->
+<div class="menu" id="mMsg">
+  <div class="menu-btn" data-act="copy">📋 Копировать</div>
+  <div class="menu-btn" data-act="edit">✏️ Редактировать</div>
+  <div class="menu-btn danger" data-act="delete">🗑 Удалить</div>
+</div>
+
+<!-- МЕНЮ 3: ПКМ по аватарке -->
+<div class="menu" id="mProfile">
+  <div style="padding: 6px;">
+    <input type="text" class="profile-input" id="profName" placeholder="Имя профиля">
+    <div class="emoji-picker">
+      <div class="emoji-opt" onclick="setEmoji('🤖')">🤖</div>
+      <div class="emoji-opt" onclick="setEmoji('👾')">👾</div>
+      <div class="emoji-opt" onclick="setEmoji('🦊')">🦊</div>
+      <div class="emoji-opt" onclick="setEmoji('🐱')">🐱</div>
+    </div>
+    <div class="menu-btn" onclick="document.getElementById('fileInput').click()">🖼️ Загрузить фото</div>
+    <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="loadImage(event)">
+    <div class="menu-btn" style="color: var(--blue);" id="saveProf">💾 Сохранить</div>
   </div>
 </div>
 
-<!-- МЕНЮ 3: Клик по сообщению -->
-<div class="custom-menu" id="menuMessage">
-  <div class="menu-item" data-action="copy">📋 Копировать</div>
-  <div class="menu-item" data-action="edit">✏️ Редактировать</div>
-  <div class="menu-item" data-action="share">↗️ Поделиться</div>
-  <div class="menu-item danger" data-action="delete">🗑 Удалить</div>
+<!-- МЕНЮ 4: ПКМ по полю ввода (Символы) -->
+<div class="menu" id="mSym">
+  <div class="symbols">
+    <div class="sym-btn" data-sym="/">/</div><div class="sym-btn" data-sym=";">;</div>
+    <div class="sym-btn" data-sym="#">#</div><div class="sym-btn" data-sym="*">*</div>
+    <div class="sym-btn" data-sym="+">+</div><div class="sym-btn" data-sym="-">-</div>
+    <div class="sym-btn" data-sym="!">!</div><div class="sym-btn" data-sym="?">?</div>
+  </div>
 </div>
 
-<div class="chat-container">
-  <div class="chat-header">
-    <div class="chat-avatar">AI</div>
-    <div>
-      <div class="chat-title">AI Assistant Bot</div>
-      <div class="chat-status">online</div>
+<!-- ЧАТ -->
+<div class="chat">
+  <div class="header">
+    <div class="avatar-btn" id="av">AI</div>
+    <div class="bots-menu" id="bots">
+      <div class="bots-scroll" id="botScroll"></div>
+      <div class="scroll-arrow" id="scrollArrow">▶</div>
+    </div>
+    <div class="header-text">
+      <div class="title" id="mainName">AI Assistant</div>
+      <div class="status">online</div>
     </div>
   </div>
 
-  <div class="chat-messages" id="chatMessages">
-    <div class="message incoming">
-      Привет! Введи в поле / (команды), ; (стикеры), # (список), * (музыка) или + (действия).
-    </div>
+  <div class="messages" id="msgs">
+    <div class="msg in">Привет! ПКМ по фону меняет обои, ПКМ по вводу — символы. Напиши что-нибудь!</div>
   </div>
 
-  <div class="input-area">
+  <div class="input-area" id="inputArea">
     
-    <!-- ПАНЕЛЬ: Команды (/) -->
-    <div class="panel" id="panelBots">
-      <div class="panel-header">
-        <span class="panel-back" id="backToMenu">← Назад</span>
-        <span>Команды</span>
-      </div>
-      <div class="suggestion-item" data-command="ai_chat">
-        <div class="suggestion-icon ai">🤖</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">/ai_chat</span>
-          <span class="suggestion-desc">умный помощник</span>
-        </div>
-      </div>
-      <div class="suggestion-item" data-command="content">
-        <div class="suggestion-icon content">✍️</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">/content</span>
-          <span class="suggestion-desc">генерация контента</span>
-        </div>
-      </div>
-      <div class="suggestion-item" data-command="card">
-        <div class="suggestion-icon card">🎴</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">/card</span>
-          <span class="suggestion-desc">создание карточки</span>
-        </div>
+    <!-- ПАНЕЛИ КОМАНД -->
+    <div class="panel" id="pBots">
+      <div class="panel-head"><span class="back">←</span>Команды</div>
+      <div class="item" data-cmd="ai_chat"><div class="icon" style="background:#8e44ad">🤖</div><div class="text"><span class="name">/ai_chat</span><span class="desc">умный помощник</span></div></div>
+      <div class="item" data-cmd="content"><div class="icon" style="background:#e67e22">✍️</div><div class="text"><span class="name">/content</span><span class="desc">контент</span></div></div>
+      <div class="item" data-cmd="image"><div class="icon" style="background:#3498db">🖼️</div><div class="text"><span class="name">/image</span><span class="desc">картинка</span></div></div>
+    </div>
+
+    <div class="panel" id="pStick">
+      <div class="panel-head"><span class="back">←</span>Стикеры</div>
+      <div class="item" data-stick="🦆 Утка"><div class="icon" style="background:#2ecc71">🦆</div><div class="text"><span class="name">/duck</span><span class="desc">утка</span></div></div>
+      <div class="item" data-stick="🐱 Кот"><div class="icon" style="background:#2ecc71">🐱</div><div class="text"><span class="name">/cat</span><span class="desc">кот</span></div></div>
+    </div>
+
+    <div class="panel" id="pList">
+      <div class="panel-head"><span class="back">←</span>Список</div>
+      <div class="grid">
+        <div class="grid-item" data-list="Молоко"><div class="grid-icon">🛒</div><div class="grid-text">Молоко</div></div>
+        <div class="grid-item" data-list="Звонок"><div class="grid-icon">📞</div><div class="grid-text">Звонок</div></div>
       </div>
     </div>
 
-    <!-- ПАНЕЛЬ: Стикеры (;) -->
-    <div class="panel" id="panelStickersList">
-      <div class="panel-header">
-        <span class="panel-back" id="backToStickersFromStickers">← Назад</span>
-        <span>Стикеры</span>
-      </div>
-      <div class="suggestion-item" data-sticker="🦆 Утка">
-        <div class="suggestion-icon sticker">🦆</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">/duck</span>
-          <span class="suggestion-desc">утка</span>
-        </div>
-      </div>
-      <div class="suggestion-item" data-sticker="🐱 Кот">
-        <div class="suggestion-icon sticker">🐱</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">/cat</span>
-          <span class="suggestion-desc">кот</span>
-        </div>
-      </div>
+    <div class="panel" id="pMusic">
+      <div class="panel-head"><span class="back">←</span>Музыка</div>
+      <div class="item" data-mus="Lo-Fi"><div class="icon" style="background:#e74c3c">🎵</div><div class="text"><span class="name">Lo-Fi</span><span class="desc">chill</span></div></div>
     </div>
 
-    <!-- ПАНЕЛЬ: Список (#) -->
-    <div class="panel" id="panelList">
-      <div class="panel-header">
-        <span class="panel-back" id="backToStickersFromList">← Назад</span>
-        <span>Список дел</span>
-      </div>
-      <div class="ps-list-grid">
-        <div class="ps-list-item" data-list-item="Купить молоко">
-          <div class="ps-list-icon">🛒</div>
-          <div class="ps-list-text">Молоко</div>
-        </div>
-        <div class="ps-list-item" data-list-item="Позвонить маме">
-          <div class="ps-list-icon">📞</div>
-          <div class="ps-list-text">Позвонить</div>
-        </div>
-        <div class="ps-list-item" data-list-item="Сделать зарядку">
-          <div class="ps-list-icon">💪</div>
-          <div class="ps-list-text">Зарядка</div>
-        </div>
-      </div>
+    <div class="panel" id="pPlus">
+      <div class="panel-head"><span class="back">←</span>Действия</div>
+      <div class="item" data-plus="Файл"><div class="icon" style="background:#9b59b6">📎</div><div class="text"><span class="name">Файл</span><span class="desc">прикрепить</span></div></div>
     </div>
 
-    <!-- ПАНЕЛЬ: Музыка (*) -->
-    <div class="panel" id="panelMusic">
-      <div class="panel-header">
-        <span class="panel-back" id="backToStickersFromMusic">← Назад</span>
-        <span>Плейлист</span>
-      </div>
-      <div class="suggestion-item music-track" data-track="Lo-Fi Beats">
-        <div class="suggestion-icon music">🎵</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">Lo-Fi Beats</span>
-          <span class="suggestion-desc">chill & relax</span>
-        </div>
-      </div>
-      <div class="suggestion-item music-track" data-track="Synthwave Mix">
-        <div class="suggestion-icon music">🎹</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">Synthwave Mix</span>
-          <span class="suggestion-desc">retro vibes</span>
-        </div>
-      </div>
+    <div class="panel" id="pVideo">
+      <div class="panel-head"><span class="back">←</span>Видео</div>
+      <div class="item" data-vid="Фильмы"><div class="icon" style="background:#f39c12">🎬</div><div class="text"><span class="name">Фильмы</span><span class="desc">подборка</span></div></div>
     </div>
 
-    <!-- ПАНЕЛЬ: Действия (+) -->
-    <div class="panel" id="panelPlus">
-      <div class="panel-header">
-        <span class="panel-back" id="backToStickersFromPlus">← Назад</span>
-        <span>Действия</span>
-      </div>
-      <div class="suggestion-item" data-plus="Отправить файл">
-        <div class="suggestion-icon" style="background: linear-gradient(135deg, #9b59b6, #d7bde2);">📎</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">Файл</span>
-          <span class="suggestion-desc">прикрепить</span>
-        </div>
-      </div>
-      <div class="suggestion-item" data-plus="Отправить геолокацию">
-        <div class="suggestion-icon" style="background: linear-gradient(135deg, #2ecc71, #82e0aa);">📍</div>
-        <div class="suggestion-text">
-          <span class="suggestion-title">Гео</span>
-          <span class="suggestion-desc">локация</span>
-        </div>
-      </div>
+    <div class="panel" id="pGame">
+      <div class="panel-head"><span class="back">←</span>Игры</div>
+      <div class="item" data-game="Аркады"><div class="icon" style="background:#2980b9">🎮</div><div class="text"><span class="name">Аркады</span><span class="desc">классика</span></div></div>
     </div>
 
-    <div class="input-container" id="inputContainer">
-      <div class="input-wrapper">
-        <textarea
-          class="message-input"
-          id="messageInput"
-          placeholder="Написать сообщение..."
-          rows="1"
-        ></textarea>
-      </div>
-      <button class="send-button" id="sendButton" title="Отправить">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
-        </svg>
-      </button>
+    <div class="panel" id="pBook">
+      <div class="panel-head"><span class="back">←</span>Закладки</div>
+      <div class="item" data-book="Избранное"><div class="icon" style="background:#16a085">⭐</div><div class="text"><span class="name">Избранное</span><span class="desc">лучшее</span></div></div>
     </div>
+
+    <div class="input-inner">
+      <textarea class="msg-input" id="msgIn" placeholder="Написать сообщение..." rows="1"></textarea>
+    </div>
+    <button class="send-btn" id="sendBtn"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg></button>
   </div>
 </div>
 
 <script>
-  // =========================================
-  // 1. ГЕНЕРАЦИЯ ИКОНОК ОБОЕВ
-  // =========================================
-  const wallpaperLayer = document.getElementById('wallpaperLayer');
-  const iconDuck = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 7.5 8 8.5 8.5 9L5 15C4.5 16 5 17 6 17H12C16.5 17 20 13.5 20 9C20 5 16.5 2 12 2Z" fill="currentColor"/><circle cx="15" cy="7" r="1" fill="#fff"/></svg>`;
-  const iconTg = `<svg viewBox="0 0 24 24" fill="none"><path d="M21.5 4L2.5 11L9 13.5L18 7L11 15L15 20L21.5 4Z" fill="currentColor"/></svg>`;
+  /* =========================================
+     1. ПЕРЕМЕННЫЕ И ИНИЦИАЛИЗАЦИЯ
+     ========================================= */
+  let profiles = [
+    { id: 1, name: 'AI Assistant', avatar: '🤖', type: 'emoji' },
+    { id: 2, name: 'Game Bot', avatar: '👾', type: 'emoji' },
+    { id: 3, name: 'Fox Helper', avatar: '🦊', type: 'emoji' }
+  ];
+  let currentProfileId = 1;
+  let editMessageElement = null;
+  let pressTimer;
+  let isDragging = false;
 
-  function generateWallpaper(theme) {
-    wallpaperLayer.innerHTML = ''; 
-    if (theme === 'none') return;
-    let icons = theme === 'ducks' ? [iconDuck, iconDuck, iconTg] : [iconTg, iconTg];
+  const av = document.getElementById('av');
+  const mainName = document.getElementById('mainName');
+  const botScroll = document.getElementById('botScroll');
+  const msgIn = document.getElementById('msgIn');
+  const msgs = document.getElementById('msgs');
+  const mBg = document.getElementById('mBg'), mMsg = document.getElementById('mMsg'), mProf = document.getElementById('mProfile'), mSym = document.getElementById('mSym');
 
-    for (let i = 0; i < 40; i++) {
-      const iconDiv = document.createElement('div');
-      iconDiv.className = 'bg-icon';
-      iconDiv.innerHTML = icons[Math.floor(Math.random() * icons.length)];
-      const size = Math.floor(Math.random() * 70) + 30;
-      iconDiv.style.width = size + 'px';
-      iconDiv.style.height = size + 'px';
-      iconDiv.style.left = Math.floor(Math.random() * 100) + 'vw';
-      iconDiv.style.top = Math.floor(Math.random() * 100) + 'vh';
-      iconDiv.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
-      wallpaperLayer.appendChild(iconDiv);
-    }
+  // Обновление эмодзи
+  function updateEmojis(element = document.body) {
+    if (window.twemoji) twemoji.parse(element, { folder: 'svg', ext: '.svg' });
   }
-  generateWallpaper('ducks');
+  updateEmojis();
 
-  // =========================================
-  // 2. ЭЛЕМЕНТЫ
-  // =========================================
-  const menuWallpaper = document.getElementById('menuWallpaper');
-  const menuSymbols = document.getElementById('menuSymbols');
-  const menuMessage = document.getElementById('menuMessage');
-  
-  const panelBots = document.getElementById('panelBots');
-  const panelStickersList = document.getElementById('panelStickersList');
-  const panelList = document.getElementById('panelList');
-  const panelMusic = document.getElementById('panelMusic');
-  const panelPlus = document.getElementById('panelPlus');
-  
-  const messageInput = document.getElementById('messageInput');
-  const chatMessages = document.getElementById('chatMessages');
-
-  let editingMessageElement = null;
-
-  // =========================================
-  // 3. ФУНКЦИЯ ДЛЯ ДИНАМИЧЕСКОЙ ВЫСОТЫ ПАНЕЛЕЙ
-  // =========================================
-  // Эта функция вычисляет, сколько пикселей осталось от верхней части 
-  // поля ввода до верхней границы экрана, и задает этот размер как max-height.
-  function updatePanelMaxHeight() {
-    // Получаем координаты поля ввода относительно окна
-    const inputRect = document.querySelector('.input-container').getBoundingClientRect();
+  /* =========================================
+     2. УПРАВЛЕНИЕ ПРОФИЛЯМИ
+     ========================================= */
+  function renderProfiles() {
+    const main = profiles.find(p => p.id === currentProfileId);
     
-    // Вычисляем свободное пространство над полем ввода
-    // Отнимаем 20px (отступы) и 16px (margin-bottom самой панели), чтобы был небольшой зазор
-    const availableSpace = inputRect.top - 36; 
-    
-    // Устанавливаем CSS-переменную для всех панелей
-    document.documentElement.style.setProperty('--dynamic-max-height', `${availableSpace}px`);
-  }
-
-  // Вызываем при загрузке и при изменении размера окна
-  window.addEventListener('resize', updatePanelMaxHeight);
-  window.addEventListener('load', updatePanelMaxHeight);
-
-  // =========================================
-  // 4. ОТКРЫТИЕ ПАНЕЛЕЙ
-  // =========================================
-  function hideAllPanels() {
-    panelBots.classList.remove('active');
-    panelStickersList.classList.remove('active');
-    panelList.classList.remove('active');
-    panelMusic.classList.remove('active');
-    panelPlus.classList.remove('active');
-  }
-
-  function hideAllMenus() {
-    menuWallpaper.classList.remove('active');
-    menuSymbols.classList.remove('active');
-    menuMessage.classList.remove('active');
-  }
-
-  function openPanelBySymbol(sym) {
-    hideAllPanels();
-    
-    // Перед открытием панели пересчитываем доступную высоту
-    updatePanelMaxHeight();
-
-    if (sym === '/') panelBots.classList.add('active'); 
-    if (sym === ';') panelStickersList.classList.add('active');
-    if (sym === '#') panelList.classList.add('active');
-    if (sym === '*') panelMusic.classList.add('active');
-    if (sym === '+') panelPlus.classList.add('active');
-  }
-
-  // =========================================
-  // 5. ПКМ
-  // =========================================
-  document.addEventListener('contextmenu', (e) => {
-    hideAllMenus();
-    
-    if (!e.target.closest('.chat-container')) {
-      e.preventDefault();
-      menuWallpaper.style.left = e.pageX + 'px';
-      menuWallpaper.style.top = e.pageY + 'px';
-      menuWallpaper.classList.add('active');
-    } 
-    else if (e.target.closest('.input-container')) {
-      e.preventDefault();
-      menuSymbols.style.left = e.pageX + 'px';
-      menuSymbols.style.top = e.pageY + 'px';
-      menuSymbols.classList.add('active');
+    if (main.type === 'image') {
+      av.textContent = ''; av.style.backgroundImage = `url(${main.avatar})`; av.style.background = 'none';
     } else {
-      e.preventDefault();
+      av.textContent = main.avatar; av.style.backgroundImage = 'none'; av.style.background = 'linear-gradient(135deg, #3390ec, #6ab7ff)';
     }
+    mainName.textContent = main.name;
+
+    botScroll.innerHTML = '';
+    profiles.forEach(p => {
+      if (p.id !== currentProfileId) {
+        const b = document.createElement('div');
+        b.className = 'bot-item inactive';
+        b.dataset.id = p.id;
+        if (p.type === 'image') { b.style.backgroundImage = `url(${p.avatar})`; b.textContent = ''; } 
+        else { b.textContent = p.avatar; }
+        botScroll.appendChild(b);
+      }
+    });
+
+    const addBtn = document.createElement('div');
+    addBtn.className = 'bot-add'; addBtn.id = 'addBot'; addBtn.textContent = '+';
+    botScroll.appendChild(addBtn);
+
+    updateEmojis(botScroll);
+  }
+  renderProfiles();
+
+  document.getElementById('saveProf').onclick = () => {
+    const p = profiles.find(p => p.id === currentProfileId);
+    p.name = document.getElementById('profName').value || 'Профиль';
+    renderProfiles(); hideMenus();
+  };
+
+  window.setEmoji = function(emoji) {
+    const p = profiles.find(p => p.id === currentProfileId);
+    p.avatar = emoji; p.type = 'emoji'; renderProfiles();
+  };
+
+  window.loadImage = function(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const p = profiles.find(p => p.id === currentProfileId);
+        p.avatar = e.target.result; p.type = 'image'; renderProfiles();
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  /* =========================================
+     3. СОБЫТИЯ ПРОФИЛЕЙ (Скролл, Клик, Добавление)
+     ========================================= */
+  av.onclick = (e) => {
+    e.stopPropagation(); hideMenus(); hidePanels();
+    document.getElementById('bots').classList.toggle('active');
+  };
+
+  botScroll.addEventListener('click', (e) => {
+    if (isDragging) return;
+    const bot = e.target.closest('.bot-item');
+    if (bot) { currentProfileId = parseInt(bot.dataset.id); renderProfiles(); return; }
+    
+    if (e.target.id === 'addBot' || e.target.closest('#addBot')) {
+      if (profiles.length >= 15) return alert('Достигнут лимит: 15 профилей');
+      profiles.push({ id: Date.now(), name: 'Новый профиль', avatar: '🐱', type: 'emoji' });
+      renderProfiles(); 
+      setTimeout(() => botScroll.scrollLeft = botScroll.scrollWidth, 50);
+    }
+  });
+
+  let startX, scrollStart;
+  botScroll.addEventListener('mousedown', (e) => { isDragging = false; startX = e.pageX; scrollStart = botScroll.scrollLeft; });
+  botScroll.addEventListener('mousemove', (e) => { 
+    if (startX !== undefined) {
+      const walk = (e.pageX - startX);
+      if (Math.abs(walk) > 5) isDragging = true;
+      botScroll.scrollLeft = scrollStart - walk;
+    }
+  });
+  botScroll.addEventListener('mouseup', () => { setTimeout(() => isDragging = false, 50); startX = undefined; });
+  botScroll.addEventListener('mouseleave', () => { startX = undefined; });
+  botScroll.addEventListener('wheel', (e) => { e.preventDefault(); botScroll.scrollLeft += e.deltaY; }, { passive: false });
+
+  document.getElementById('scrollArrow').onclick = (e) => {
+    e.stopPropagation(); botScroll.scrollBy({ left: 120, behavior: 'smooth' });
+  };
+
+  /* =========================================
+     4. ПКМ МЕНЮ (ФОН, ВВОД, АВАТАР)
+     ========================================= */
+  document.addEventListener('contextmenu', (e) => {
+    hideMenus();
+    // Аватар
+    if (e.target.closest('#av')) {
+      e.preventDefault();
+      mProf.style.cssText = `left:${Math.min(e.pageX, innerWidth-220)}px;top:${Math.min(e.pageY, innerHeight-250)}px`;
+      mProf.classList.add('active');
+      document.getElementById('profName').value = profiles.find(p => p.id === currentProfileId).name;
+      return;
+    }
+    // Поле ввода (Символы)
+    if (e.target.closest('.input-area')) {
+      e.preventDefault(); hidePanels();
+      mSym.style.cssText = `left:${Math.min(e.pageX, innerWidth-230)}px;top:${Math.max(10, e.pageY-200)}px`;
+      mSym.classList.add('active');
+      return;
+    }
+    // Фон (Обои)
+    if (!e.target.closest('.chat')) { 
+      e.preventDefault();
+      mBg.style.cssText = `left:${Math.min(e.pageX, innerWidth-200)}px;top:${Math.min(e.pageY, innerHeight-150)}px`;
+      mBg.classList.add('active');
+    } else { e.preventDefault(); }
+  });
+
+  // Обработка меню фона
+  mBg.addEventListener('click', (e) => { 
+    const b = e.target.closest('[data-bg]'); 
+    if (b) { setBg(b.dataset.bg); hideMenus(); } 
+  });
+
+  // Обработка меню символов
+  mSym.addEventListener('click', (e) => { 
+    const b = e.target.closest('.sym-btn'); 
+    if (b) {
+      const s = b.dataset.sym; hideMenus();
+      const panelMap = { '/':'pBots', ';':'pStick', '#':'pList', '*':'pMusic', '+':'pPlus', '-':'pVideo', '!':'pGame', '?':'pBook' };
+      if (panelMap[s]) { hidePanels(); calcPanelHeight(); document.getElementById(panelMap[s]).classList.add('active'); msgIn.value = ''; }
+      else { msgIn.value += s; msgIn.focus(); }
+    } 
+  });
+
+  /* =========================================
+     5. МЕНЮ СООБЩЕНИЙ (ПКМ / Long Press)
+     ========================================= */
+  function showMsgMenu(x, y, el) {
+    hideMenus(); hidePanels(); editMessageElement = el;
+    mMsg.style.cssText = `left:${Math.min(x, innerWidth-150)}px;top:${Math.min(y+10, innerHeight-150)}px`;
+    mMsg.classList.add('active');
+  }
+
+  msgs.addEventListener('touchstart', (e) => {
+    const msg = e.target.closest('.msg');
+    if (msg) pressTimer = setTimeout(() => showMsgMenu(e.touches[0].pageX, e.touches[0].pageY, msg), 500);
+  }, { passive: true });
+  msgs.addEventListener('touchend', () => clearTimeout(pressTimer));
+  msgs.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
+  msgs.addEventListener('contextmenu', (e) => {
+    const msg = e.target.closest('.msg');
+    if (msg) { e.preventDefault(); showMsgMenu(e.pageX, e.pageY, msg); }
+  });
+
+  mMsg.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]'); if (!b || !editMessageElement) return;
+    const t = editMessageElement.textContent;
+    if (b.dataset.act === 'copy') navigator.clipboard.writeText(t);
+    if (b.dataset.act === 'edit') { msgIn.value = t; msgIn.focus(); }
+    if (b.dataset.act === 'delete') editMessageElement.remove();
+    hideMenus(); editMessageElement = null;
+  });
+
+  /* =========================================
+     6. ВВОД И ОТПРАВКА СООБЩЕНИЙ
+     ========================================= */
+  function sendUserMessage(text) {
+    const m = document.createElement('div'); m.className = 'msg out'; m.textContent = text;
+    msgs.appendChild(m); msgs.scrollTop = msgs.scrollHeight; 
+    msgIn.value = ''; msgIn.style.height = 'auto';
+    updateEmojis(m);
+
+    setTimeout(() => {
+      let response = "Принято!";
+      const t = text.toLowerCase();
+      if (t.includes('/ai_chat')) response = "🤖 <b>AI Chat активирован!</b><br>Я готов к общению.";
+      else if (t.includes('/content')) response = "✍️ <b>Генерация контента.</b>";
+      else if (t.includes('/duck')) response = "🦆 Кря-кря!";
+      else if (t.includes('/cat')) response = "🐱 Мяу!";
+      else if (t.includes('молоко')) response = "🛒 Добавлено в список: Молоко";
+
+      const bm = document.createElement('div'); bm.className = 'msg in'; bm.innerHTML = response;
+      msgs.appendChild(bm); msgs.scrollTop = msgs.scrollHeight;
+      updateEmojis(bm);
+    }, 600);
+  }
+  
+  document.querySelectorAll('.item').forEach(el => el.onclick = () => {
+    const d = el.dataset;
+    if (d.cmd) sendUserMessage('/'+d.cmd); 
+    if (d.stick) sendUserMessage(d.stick); 
+    if (d.mus) sendUserMessage(d.mus); 
+    if (d.plus) sendUserMessage(d.plus); 
+    if (d.vid) sendUserMessage(d.vid); 
+    if (d.game) sendUserMessage(d.game); 
+    if (d.book) sendUserMessage(d.book);
+    hidePanels();
+  });
+
+  document.querySelectorAll('.grid-item').forEach(el => el.onclick = () => {
+    sendUserMessage('📋 В список: ' + el.dataset.list);
+    hidePanels();
+  });
+
+  msgIn.oninput = function() {
+    this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120)+'px';
+    const v = this.value.trim();
+    const panelMap = { '/':'pBots', ';':'pStick', '#':'pList', '*':'pMusic', '+':'pPlus', '-':'pVideo', '!':'pGame', '?':'pBook' };
+    if (v.length === 1 && panelMap[v]) { hidePanels(); calcPanelHeight(); document.getElementById(panelMap[v]).classList.add('active'); }
+    else hidePanels();
+  };
+
+  msgIn.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (msgIn.value.trim()) { sendUserMessage(msgIn.value); hidePanels(); } }
+  };
+  document.getElementById('sendBtn').onclick = () => { if (msgIn.value.trim()) { sendUserMessage(msgIn.value); hidePanels(); } };
+
+  /* =========================================
+     7. УТИЛИТЫ И ФОНЫ
+     ========================================= */
+  function hideMenus() { [mBg, mMsg, mProf, mSym].forEach(el => el.classList.remove('active')); }
+  function hidePanels() { document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); }
+  
+  function calcPanelHeight() {
+    const top = document.querySelector('.input-area').getBoundingClientRect().top;
+    document.documentElement.style.setProperty('--panel-max', `${top - 36}px`);
+  }
+  window.addEventListener('resize', calcPanelHeight); calcPanelHeight();
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu') && !e.target.closest('.input-area') && !e.target.closest('.header')) {
+      hideMenus(); hidePanels();
+    }
+  });
+
+  document.querySelectorAll('.back').forEach(b => b.onclick = (e) => { 
+    e.stopPropagation(); hidePanels(); mSym.classList.add('active'); 
   });
 
   // Обои
-  document.querySelectorAll('#menuWallpaper .menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const bg = item.dataset.bg;
-      if (bg === 'none') {
-        wallpaperLayer.classList.remove('active');
-        wallpaperLayer.innerHTML = '';
-      } else {
-        wallpaperLayer.classList.add('active');
-        generateWallpaper(bg);
-      }
-      hideAllMenus();
-    });
-  });
-
-  // Символы из ПКМ
-  document.querySelectorAll('#menuSymbols .symbol-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const sym = btn.dataset.symbol;
-      hideAllMenus();
-      openPanelBySymbol(sym);
-    });
-  });
-
-  // =========================================
-  // 6. КЛИК ПО СООБЩЕНИЮ
-  // =========================================
-  document.addEventListener('click', (e) => {
-    const msgElement = e.target.closest('.message');
-    if (msgElement) {
-      hideAllMenus();
-      hideAllPanels();
-      editingMessageElement = msgElement;
-      
-      menuMessage.style.left = e.pageX + 'px';
-      menuMessage.style.top = e.pageY + 'px';
-      menuMessage.classList.add('active');
-      
-      const rect = menuMessage.getBoundingClientRect();
-      if (rect.right > window.innerWidth) menuMessage.style.left = (e.pageX - rect.width) + 'px';
-      if (rect.bottom > window.innerHeight) menuMessage.style.top = (e.pageY - rect.height) + 'px';
-      
-      return;
+  const wp = document.getElementById('wp');
+  const iDuck = `<svg viewBox="0 0 24 24"><path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 7.5 8 8.5 8.5 9L5 15C4.5 16 5 17 6 17H12C16.5 17 20 13.5 20 9C20 5 16.5 2 12 2Z" fill="currentColor"/><circle cx="15" cy="7" r="1" fill="#fff"/></svg>`;
+  const iTg = `<svg viewBox="0 0 24 24"><path d="M21.5 4L2.5 11L9 13.5L18 7L11 15L15 20L21.5 4Z" fill="currentColor"/></svg>`;
+  
+  function setBg(theme) {
+    wp.innerHTML = ''; if (theme === 'none') return;
+    const icons = theme === 'ducks' ? [iDuck, iDuck, iTg] : [iTg, iTg, iDuck];
+    for (let i = 0; i < 40; i++) {
+      const d = document.createElement('div'); d.className = 'bg-icon';
+      d.innerHTML = icons[Math.floor(Math.random() * icons.length)];
+      const s = Math.floor(Math.random() * 70) + 30;
+      Object.assign(d.style, { width: s+'px', height: s+'px', left: Math.random()*100+'vw', top: Math.random()*100+'vh', transform: `rotate(${Math.random()*360}deg)` });
+      wp.appendChild(d);
     }
-
-    if (!e.target.closest('.custom-menu') && !e.target.closest('.input-area')) {
-      hideAllMenus();
-      hideAllPanels();
-    }
-  });
-
-  // Действия с сообщением
-  document.querySelectorAll('#menuMessage .menu-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const action = item.dataset.action;
-      const text = editingMessageElement ? editingMessageElement.textContent : '';
-      
-      if (action === 'copy') navigator.clipboard.writeText(text);
-      else if (action === 'edit') { messageInput.value = text; messageInput.focus(); } 
-      else if (action === 'share') alert(`Поделиться: "${text}"`);
-      else if (action === 'delete') { if (editingMessageElement) editingMessageElement.remove(); }
-      
-      hideAllMenus();
-      editingMessageElement = null;
-    });
-  });
-
-  // =========================================
-  // 7. НАВИГАЦИЯ ПО ПАНЕЛЯМ
-  // =========================================
-  const backBtns = [
-    'backToStickersFromStickers', 'backToStickersFromList', 
-    'backToStickersFromBots', 'backToStickersFromMusic', 'backToStickersFromPlus'
-  ];
-  backBtns.forEach(id => {
-    document.getElementById(id)?.addEventListener('click', (e) => {
-      e.stopPropagation(); 
-      hideAllPanels(); 
-      menuSymbols.classList.add('active');
-    });
-  });
-
-  document.getElementById('backToMenu')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    hideAllPanels();
-    menuSymbols.classList.add('active');
-  });
-
-  // =========================================
-  // 8. СПИСОК (#) ЛОГИКА
-  // =========================================
-  document.querySelectorAll('.ps-list-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      
-      item.classList.toggle('selected');
-      
-      if (item.classList.contains('selected')) {
-        const text = item.dataset.listItem;
-        const userMsg = document.createElement('div');
-        userMsg.className = 'message outgoing';
-        userMsg.innerHTML = `📋 <b>В список:</b><br>${text}`;
-        chatMessages.appendChild(userMsg);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      }
-    });
-  });
-
-  // =========================================
-  // 9. ОТПРАВКА ИЗ ПАНЕЛЕЙ
-  // =========================================
-  function sendToChat(text, isMusic = false) {
-    const userMsg = document.createElement('div');
-    userMsg.className = 'message outgoing';
-    
-    if (isMusic) userMsg.innerHTML = `🎵 <b>Отправлен трек:</b><br>${text}`;
-    else userMsg.textContent = text;
-    
-    chatMessages.appendChild(userMsg);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    messageInput.value = '';
   }
-
-  document.querySelectorAll('#panelBots .suggestion-item').forEach(item => {
-    item.addEventListener('click', () => {
-      hideAllPanels();
-      sendToChat('/' + item.dataset.command);
-    });
-  });
-
-  document.querySelectorAll('#panelMusic .music-track').forEach(item => {
-    item.addEventListener('click', () => {
-      hideAllPanels();
-      sendToChat(item.dataset.track, true);
-    });
-  });
-
-  document.querySelectorAll('#panelStickersList .suggestion-item').forEach(item => {
-    item.addEventListener('click', () => {
-      hideAllPanels();
-      sendToChat(item.dataset.sticker);
-    });
-  });
-
-  document.querySelectorAll('#panelPlus .suggestion-item').forEach(item => {
-    item.addEventListener('click', () => {
-      hideAllPanels();
-      sendToChat(item.dataset.plus);
-    });
-  });
-
-  // =========================================
-  // 10. ВВОД С КЛАВИАТУРЫ
-  // =========================================
-  messageInput.addEventListener('input', () => {
-    messageInput.style.height = 'auto';
-    messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
-    
-    const val = messageInput.value.trim();
-    
-    if (val.length === 1) {
-      if (val === '/') openPanelBySymbol('/');
-      else if (val === ';') openPanelBySymbol(';');
-      else if (val === '#') openPanelBySymbol('#');
-      else if (val === '*') openPanelBySymbol('*');
-      else if (val === '+') openPanelBySymbol('+');
-      else hideAllPanels();
-    } else {
-      hideAllPanels();
-    }
-  });
-
-  messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const text = messageInput.value.trim();
-      if (!text) return;
-      hideAllPanels();
-      sendToChat(text);
-    }
-  });
-
-  document.getElementById('sendButton').addEventListener('click', () => {
-    const text = messageInput.value.trim();
-    if (!text) return;
-    hideAllPanels();
-    sendToChat(text);
-  });
+  setBg('ducks');
 </script>
-
 </body>
 </html>
